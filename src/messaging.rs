@@ -1,4 +1,5 @@
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncWriteExt, BufReader};
+use tokio::net::TcpStream;
 
 use crate::login;
 
@@ -24,7 +25,7 @@ impl Chat {
         sender: login::Person,
         recipient: i32,
         message: String,
-        socket: &mut tokio::net::TcpStream
+        socket: &mut TcpStream
     ) -> Result<(), Box<dyn std::error::Error>> {
         self.messages.push(Message {
             sender,
@@ -32,8 +33,9 @@ impl Chat {
             message: message.clone(),
         });
 
+        let mut reader = BufReader::new(socket);
         let notification = format!("Your message '{}' was sent!\n", message);
-        socket.write_all(notification.as_bytes()).await?;
+        reader.get_mut().write_all(notification.as_bytes()).await?;
 
         Ok(())
     }
@@ -41,13 +43,14 @@ impl Chat {
     pub async fn show_messages(
         &self,
         id: i32,
-        socket: &mut tokio::net::TcpStream
+        socket: &mut TcpStream
     ) -> Result<(), Box<dyn std::error::Error>> {
+        let mut reader = BufReader::new(socket);
         for message in &self.messages {
             if id == 0 || message.recipient == id {
                 let msg =
                     format!("From {}: {}\n", message.sender.get_name(), message.message);
-                socket.write_all(msg.as_bytes()).await?;
+                reader.get_mut().write_all(msg.as_bytes()).await?;
             }
         }
 

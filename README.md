@@ -28,7 +28,6 @@ See `Cargo.toml` :
 ```toml
 [dependencies]
 tokio = { version = "1", features = ["full"] }
-argon2 = "0.5.3"
 rusqlite = "0.32.1"
 sha1 = "0.10.5"
 ```

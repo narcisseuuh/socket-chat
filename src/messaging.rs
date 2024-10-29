@@ -32,7 +32,7 @@ impl Chat {
             message: message.clone(),
         });
 
-        let notification = format!("Your message '{}' was sent!", message);
+        let notification = format!("Your message '{}' was sent!\n", message);
         socket.write_all(notification.as_bytes()).await?;
 
         Ok(())

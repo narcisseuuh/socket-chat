@@ -124,8 +124,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .unwrap_or_else(|| "127.0.0.1:8080".to_string());
 
     let listener = TcpListener::bind(&addr).await?;
-    let conn = Arc::new(Mutex::new(login::initialize_database().unwrap()));
-    let chat = Arc::new(Mutex::new(messaging::Chat::new()));
+    let conn =
+        Arc::new(Mutex::new(login::initialize_database().unwrap()));
+    let chat =
+        Arc::new(Mutex::new(messaging::Chat::new()));
     println!("Listening on: {}", addr);
 
     loop {
@@ -135,49 +137,58 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let chat = Arc::clone(&chat);
 
         tokio::spawn(async move {
-            let mut buf = vec![0; 1];
-            let choice =
-            {
-                let mut socket_borrowing = socket_locker.lock().await;
+            loop {
+                let mut buf = vec![0; 1];
+                let choice =
+                {
+                    let mut socket_borrowing =
+                        socket_locker.lock().await;
 
-                socket_borrowing.write_all(b"1. Login\n").await.unwrap();
-                socket_borrowing.write_all(b"2. Register\n").await.unwrap();
+                    socket_borrowing.write_all(b"1. Login\n").await.unwrap();
+                    socket_borrowing.write_all(b"2. Register\n").await.unwrap();
+                    socket_borrowing.write_all(b"3. Exit\n").await.unwrap();
 
-                let n = socket_borrowing.read(&mut buf).await.unwrap();
-                let choice_str = String::from_utf8_lossy(&buf[..n]);
-                choice_str.trim().to_string()
-            };
+                    let n = socket_borrowing.read(&mut buf).await.unwrap();
+                    let choice_str = String::from_utf8_lossy(&buf[..n]);
+                    choice_str.trim().to_string()
+                };
 
-            match choice.as_str() {
-                "1" => {
-                    println!("User logging in...");
-                    match get_login(&socket_locker, conn.clone()).await {
-                        Ok(id) => {
-                            println!("User {} entering the main menu!", id);
-                            if let Err(e) =
-                            menu(&socket_locker, id, chat.clone(), conn.clone()).await {
-                                eprintln!("Error in menu: {}", e);
+                match choice.as_str() {
+                    "1" => {
+                        println!("User logging in...");
+                        match get_login(&socket_locker, conn.clone()).await {
+                            Ok(id) => {
+                                println!("User {} entering the main menu!", id);
+                                if let Err(e) =
+                                menu(&socket_locker, id, chat.clone(), conn.clone()).await {
+                                    eprintln!("Error in menu: {}", e);
+                                }
+                                println!("End of user session!");
                             }
-                            println!("End of user session!");
-                        }
-                        Err(e) => {
-                            eprintln!("Login failed: {}", e);
+                            Err(e) => {
+                                eprintln!("Login failed: {}", e);
+                            }
                         }
                     }
-                }
-                "2" => {
-                    println!("User registering...");
-                    // Generate a new unique id for each user
-                    let id = login::generate_unique_id(&conn).await.unwrap();
-                    if let Err(e) =
-                    register_account(&socket_locker, conn.clone(), id).await {
-                        eprintln!("Registration failed: {}", e);
+                    "2" => {
+                        println!("User registering...");
+                        // Generate a new unique id for each user
+                        let id = login::generate_unique_id(&conn).await.unwrap();
+                        if let Err(e) =
+                        register_account(&socket_locker, conn.clone(), id).await {
+                            eprintln!("Registration failed: {}", e);
+                        }
+                        println!("User registered!");
                     }
-                    println!("User registered!");
-                }
-                _ => {
-                    let mut socket_borrowing = socket_locker.lock().await;
-                    socket_borrowing.write_all(b"Invalid choice\n").await.unwrap();
+                    "3" => {
+                        break;
+                    }
+                    _ => {
+                        let mut socket_borrowing =
+                            socket_locker.lock().await;
+                        socket_borrowing
+                            .write_all(b"Invalid choice\n").await.unwrap();
+                    }
                 }
             }
         });

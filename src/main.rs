@@ -139,7 +139,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         tokio::spawn(async move {
             let mut reader = reader;
             loop {
-                let mut buf = vec![0; 1];
+                let mut buf = vec![0; 1024];
                 let choice =
                 {
                     reader.get_mut().write_all(b"1. Login\n").await.unwrap();
